@@ -1,5 +1,6 @@
+
 #import "DropboxPlugin.h"
-#import <ObjectiveDropboxOfficial/ObjectiveDropboxOfficial.h>
+#import "MyDBClientsManager.h"
 
 @interface DropboxPlugin () {
     NSString *appKey;
@@ -63,16 +64,16 @@ FlutterMethodChannel* channel;
 #ifdef DOWNLOAD_ERROR_WORKAROUND
         DBTransportDefaultConfig *transportConfiguration = [[DBTransportDefaultConfig alloc] initWithAppKey:key forceForegroundSession:YES];
         // forceForegroundSession: fixes download error on some devices (https://github.com/dropbox/dropbox-sdk-obj-c/issues/258)
-        [DBClientsManager setupWithTransportConfig: transportConfiguration];
+        [MyDBClientsManager setupWithTransportConfig: transportConfiguration];
 #else
-      [DBClientsManager setupWithAppKey: key];
+      [MyDBClientsManager setupWithAppKey: key];
 #endif
       
       result([NSNumber numberWithBool:TRUE]);
 
   } else if ([@"authorize" isEqualToString:call.method]) {
 
-      [DBClientsManager authorizeFromController:[UIApplication sharedApplication]
+      [MyDBClientsManager authorizeFromController:[UIApplication sharedApplication]
                                      controller:[[self class] topMostController]
                                         openURL:^(NSURL *url) {
                                           NSLog(@"url = %@" , [url absoluteString]);
@@ -87,8 +88,8 @@ FlutterMethodChannel* channel;
   } else if ([@"finishAuth" isEqualToString:call.method]) {
 //      NSString *code = call.arguments[@"code"];
 
-      DBUserClient *client = [DBClientsManager authorizedClient];
-      NSDictionary<NSString *, DBUserClient *> *clients =[DBClientsManager authorizedClients];
+      DBUserClient *client = [MyDBClientsManager authorizedClient];
+      NSDictionary<NSString *, DBUserClient *> *clients =[MyDBClientsManager authorizedClients];
       NSLog(@"clients = %@", clients);
       for (NSString *key in clients.allKeys) {
           NSLog(@"key = %@", key);
@@ -102,15 +103,15 @@ FlutterMethodChannel* channel;
 
   } else if ([@"authorizeWithAccessToken" isEqualToString:call.method]) {
       NSString *accessToken = call.arguments[@"accessToken"];
-
-      [DBClientsManager authorizeClientFromKeychain:accessToken];
+      
+      [MyDBClientsManager setAccessToken:accessToken];
 
       result(@(TRUE));
   } else if ([@"authorizePKCE" isEqualToString:call.method]) {
       DBScopeRequest *scopeRequest = [[DBScopeRequest alloc] initWithScopeType:DBScopeTypeUser
                                                                         scopes:@[]
                                                           includeGrantedScopes:NO];
-      [DBClientsManager authorizeFromControllerV2:[UIApplication sharedApplication]
+      [MyDBClientsManager authorizeFromControllerV2:[UIApplication sharedApplication]
                                        controller:[[self class] topMostController]
                             loadingStatusDelegate:nil
                                           openURL:^(NSURL *url) { [[UIApplication sharedApplication] openURL:url]; }
@@ -121,16 +122,16 @@ FlutterMethodChannel* channel;
       NSString *accessToken = call.arguments[@"credentials"];
       // XXX iOS seems to use accessToken for management of keys (even if short lived PKCE is used)
       
-      [DBClientsManager authorizeClientFromKeychain:accessToken];
+      [MyDBClientsManager authorizeClientFromKeychain:accessToken];
 
       result(@(TRUE));
   } else if ([@"getCredentials" isEqualToString:call.method]) {
       // XXX iOS seems to use accessToken for management of keys (even if short lived PKCE is used)
-      DBUserClient *client = [DBClientsManager authorizedClient];
+      DBUserClient *client = [MyDBClientsManager authorizedClient];
       result(client.accessToken);
 
   } else if ([@"getAccountName" isEqualToString:call.method]) {
-      DBUserClient *client = [DBClientsManager authorizedClient];
+      DBUserClient *client = [MyDBClientsManager authorizedClient];
       
       [[client.usersRoutes getCurrentAccount] setResponseBlock:^(DBUSERSFullAccount * _Nullable account, DBNilObject * _Nullable routeError, DBRequestError * _Nullable networkError) {
           result(account.name.displayName);
@@ -139,7 +140,7 @@ FlutterMethodChannel* channel;
 //      result(@"accountname");
   } else if ([@"listFolder" isEqualToString:call.method]) {
       NSString *path = call.arguments[@"path"];
-      DBUserClient *client = [DBClientsManager authorizedClient];
+      DBUserClient *client = [MyDBClientsManager authorizedClient];
       
       [[client.filesRoutes listFolder:path]
       setResponseBlock:^(DBFILESListFolderResult *response, DBFILESListFolderError *routeError, DBRequestError *networkError) {
@@ -165,14 +166,14 @@ FlutterMethodChannel* channel;
       }];
 
   } else if ([@"getAccessToken" isEqualToString:call.method]) {
-      DBUserClient *client = [DBClientsManager authorizedClient];
+      DBUserClient *client = [MyDBClientsManager authorizedClient];
       result(client.accessToken);
       
   } else if ([@"unlink" isEqualToString:call.method]) {
-      [DBClientsManager unlinkAndResetClients];
+      [MyDBClientsManager unlinkAndResetClients];
       
   } else if ([@"getTemporaryLink" isEqualToString:call.method]) {
-      DBUserClient *client = [DBClientsManager authorizedClient];
+      DBUserClient *client = [MyDBClientsManager authorizedClient];
       NSString *path = call.arguments[@"path"];
 
       [[client.filesRoutes getTemporaryLink:path] setResponseBlock:^(DBFILESGetTemporaryLinkResult *linkResult, DBFILESGetTemporaryLinkError * linkErr, DBRequestError* dbError) {
@@ -190,7 +191,7 @@ FlutterMethodChannel* channel;
           }
       }];
   } else if ([@"getThumbnailBase64String" isEqualToString:call.method]) {
-      DBUserClient *client = [DBClientsManager authorizedClient];
+      DBUserClient *client = [MyDBClientsManager authorizedClient];
       NSString *path = call.arguments[@"path"];
       
       NSArray<DBFILESThumbnailArg *> *entries = @[[[DBFILESThumbnailArg alloc] initWithPath:path]];
@@ -216,7 +217,7 @@ FlutterMethodChannel* channel;
       NSString *filepath = call.arguments[@"filepath"];
       NSString *dropboxpath = call.arguments[@"dropboxpath"];
       NSNumber *key = call.arguments[@"key"];
-      DBUserClient *client = [DBClientsManager authorizedClient];
+      DBUserClient *client = [MyDBClientsManager authorizedClient];
       DBFILESWriteMode *mode = [[DBFILESWriteMode alloc] initWithOverwrite];
 
       NSError* error = nil;
@@ -281,7 +282,7 @@ FlutterMethodChannel* channel;
       NSString *dropboxpath = call.arguments[@"dropboxpath"];
       NSNumber *key = call.arguments[@"key"];
       NSURL *fileUrl = [NSURL fileURLWithPath:filepath isDirectory:NO];
-      DBUserClient *client = [DBClientsManager authorizedClient];
+      DBUserClient *client = [MyDBClientsManager authorizedClient];
       
 //      NSLog(@"fileUrl = %@", fileUrl);
       
@@ -340,7 +341,7 @@ FlutterMethodChannel* channel;
 }
 
 - (void) listFolderContinue: (NSString *)cursor result:(FlutterResult) result array:(NSMutableArray*) arr {
-    DBUserClient *client = [DBClientsManager authorizedClient];
+    DBUserClient *client = [MyDBClientsManager authorizedClient];
 
     [[client.filesRoutes listFolderContinue:cursor] setResponseBlock:^(DBFILESListFolderResult *response, DBFILESListFolderContinueError * _Nullable routeError, DBRequestError * _Nullable networkError) {
         if (response) {

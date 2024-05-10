@@ -8,6 +8,7 @@ A flutter plugin for accessing Dropbox.
 
 Register a Dropbox API app from https://www.dropbox.com/developers .
 You need dropbox key and dropbox secret.
+Note: Dropbox secret could be set to `null` for PKCE authorization
 
 For Android, add below in AndroidManifest.xml (replace DROPBOXKEY with your key)
 

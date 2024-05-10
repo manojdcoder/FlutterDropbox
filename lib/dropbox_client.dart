@@ -24,7 +24,7 @@ class Dropbox {
   /// Initialize dropbox library
   ///
   /// init() should be called only once.
-  static Future<bool> init(String clientId, String key, String secret) async {
+  static Future<bool> init(String clientId, String key, String? secret) async {
     _channel.setMethodCallHandler(_handleMethodCall);
 
     return await _channel.invokeMethod(
